@@ -85,7 +85,9 @@ Now the instance is up and running it's time to try and connect to it!
 Go to the directory where you downloaded the SSH key.
 
 Then try this command:
-`ssh -i MyEC2Key ec2-user@<instance-ip-address>`
+```bash
+ssh -i MyEC2Key ec2-user@<instance-ip-address>
+```
 
 You'll need to go and find what the instance ip address is.
 
@@ -108,7 +110,7 @@ Run "sudo yum update" to apply all updates.
 
 You'll notice it's kindly asking us to update the packages on the instance. Keeping instances patched is a good habit to get into. When instances are publicly accessible through the internet we really want to make sure there are no security exploits that a hacker can take advantage of.
 
-If you run the command suggested above: `sudo yum update` your instance will get patch up. However you'll notice that it prompts you if you want to install the updates.
+If you run the command suggested above: `sudo yum update` your instance will get patched up. However you'll notice that it prompts you if you want to install the updates.
 
 In our case we always want to install the updates, and there are times that prompting for user input will break automation scripts that we write.
 
@@ -118,8 +120,42 @@ Note: after you've run the updates once, the instance won't need updating again.
 
 Follow the same steps as before. You don't need to generate a new SSH key, just select the one you created last time.
 
-
 ### 4. Install Jenkins
+
+Ok so we've spun up an instance and SSHed onto it. Now for some Jenkins installing action!
+
+#### 4.1 Where to find the package
+
+Linux software typically gets distributed as packages.
+
+There's a tool called YUM that is used to manage the downloading, installation and updating of those packages. There are other tools for other flavours of Linux, but we will just focus on YUM for now as that the manager that Amazon Linux 2 uses.
+
+#### 4.2 Configuring the YUM repo
+
+YUM needs to know a few things about the 
+
+
+#### 4.3 Installing the package
+
+
+#### 4.4 Oops!
+
+
+
+
+Firstly to install jenkins, we need to get the Jenkins package from somewhere.
+
+```bash
+sudo wget -O /etc/yum.repos.d/jenkins.repo http://pkg.jenkins.io/redhat/jenkins.repo
+```
+
+After the package has been downloaded to the instance, lets install it:
+
+```bash
+sudo yum install jenkins
+```
+
+
 
 ### 5. Start the Jenkins service
 
