@@ -132,8 +132,93 @@ There's a tool called YUM that is used to manage the downloading, installation a
 
 #### 4.2 Configuring the YUM repo
 
-YUM needs to know a few things about the 
+YUM needs to know a few things about the packages you want to install. The main ones being the name of the package and which YUM repository to get it from. This information get stored in `.repo` files in the following directory:
+```
+/etc/yum.repos.d/
+```
 
+Go to that directory now and take a look at the contents using:
+```
+ls -la
+```
+
+You should see something like this:
+```
+drwxr-xr-x  2 root root   54 Jun 22 22:46 .
+drwxr-xr-x 79 root root 8192 Aug  2 21:51 ..
+-rw-r--r--  1 root root  982 Jun 22 21:50 amzn2-core.repo
+-rw-r--r--  1 root root  763 Jun 22 22:46 amzn2-extras.repo
+```
+
+Try installing Jenkins using:
+```
+yum install jenkins
+```
+
+Oops that didn't work. How about:
+```
+sudo yum install jenkins
+```
+
+Hmm different error but still no good...
+
+YUM doesn't know anything about a package called Jenkins. Perhaps we can help it out:
+
+```bash
+sudo wget -O /etc/yum.repos.d/jenkins.repo http://pkg.jenkins.io/redhat/jenkins.repo
+```
+
+Now list the contens of the `/etc/yum.repos.d` directory again. You'll see something new has popped up:
+
+```
+-rw-r--r--  1 root root   71 Nov 29  2016 jenkins.repo
+```
+
+Sweet! Now try installing Jenkins again using YUM install. You should get prompted to download and install the package! Success!!
+
+
+Hahaha nah just kidding. Linux has a sick sense of humor, it was just lulling you into a false sense of security.
+
+Another error has popped up:
+
+```
+Public key for jenkins-2.135-1.1.noarch.rpm is not installed
+```
+
+There are two ways to solve this error. One is obvious, install the public key. The other is not quite so obvious. See if you can find out what that is. The answer is just below, try to solve it before peeking!
+
+Packages can be signed by the package author, using their private key. This is done to validate the package is actually legitamate, and hasn't been compormised by a third party. To check the package is legit, you need to get the package authors public key.
+
+#### 4.3.1 Installing the public key
+To install the public key for the Jenkins package:
+```
+sudo rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
+```
+
+The other option you have is:
+
+#### 4.3.2 Disabling key checking
+The other option is disabling key checking. This option is riskier, especially when you are downloading packages from public repositories. A field in the `.repo` file indicates whether key checking should occur or not.
+
+To check the contents of the Jenkins .repo file try:
+```
+more jenkins.repo
+```
+
+or
+
+```
+cat jenkins.repo
+```
+
+or
+
+```
+less jenkins.repo
+```
+press   `q` to exit less!
+
+The three commands do more or less the same thing (see what I did there??).
 
 #### 4.3 Installing the package
 
