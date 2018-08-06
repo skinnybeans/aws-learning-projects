@@ -8,15 +8,17 @@ For this project, you will be using the AWS console to create a virtual machine,
 
 ## Prerequisites
 
+The commands in this document assume you are using a Linux based terminal.
+
 You'll need to have access to an AWS account.
 
 Everything in this project uses AWS free tier resources so go sign up for a new account now!
 
+I'd recommend using your own account rather than a shared account, just so you get the behavior expected though out this project.
+
 ## Setting up your account
 
-Once you've created your account, if you navigate to the IAM section of the console you'll see a checklist that looks something like this:
-
-__[image link here]__
+Once you've created your account, if you navigate to the IAM section of the console you'll see a checklist of tasks to complete.
 
 Complete the checklist.
 
@@ -26,20 +28,21 @@ You'll also need to generate an access key and secret id.
 
 ## Getting down to business
 
-This document will outline in broad terms what the goals of the mini project will. There will be information left out on exactly how to get some things working.
-
-However! All the information required can be found quite easily doing google searches.
-
-If you get really stuck, there is a walkthrough right down the bottom of the page. I encourage you to use this as a last resort. Troubleshooting problems and finding answers to them is one of the most important skills to have when dealing with tech problems and AWS is no different.
+This document will outline the steps you need to take to complete the project. At some points, things will not work. This has been done deliberately so you can see what kind of errors are produced and what actions can solve them.
 
 ## Goal
-Being able to log into a newly installed Jenkins instance and provide the unlock code.
 
-These steps will be done though the AWS console and by SSHing onto the virtual machine that will run Jenkins.
+The ultimate goal of this project:
 
-## Steps
+```
+Log onto the management console of a newly set up Jenkins automation server.
+```
 
-This is a high level outline of what needs to happen, if you are after an extra challenge see how far you can get with just these vague directions.
+Let's get cracking.
+
+## View from above
+
+Here is a high level outline of what needs to happen, if you are after an extra challenge see how far you can get with just these vague directions.
 
 1. Create EC2 instance.
 
@@ -59,16 +62,25 @@ If you managed to get Jenkins up and running with just those instructions, you p
 
 ## Steps - with more
 
-Here's a little more information about what's happening at each step.
+Here's the detailed rundown of the steps. Remember, things will not work the first time! Fixing broken things is why we all got into IT in the first place right?!
 
 ### 1. Create an EC2 instance
 
+#### What's an EC2?
+
 EC2 what AWS call their cloud virtual machines. There are a massive range of different types available for any sort of computing load you can think of. You pay by the hour for what you use, but if you have a new account you can use t2.micro instances free for a certain amount of time each month.
 
+#### Choosing your flavor
+
 For this project we want to use the following settings when launching the EC2 instance:
-1. AMI: Amazon Linux 2
-1. Instance type: t2.micro
-1. The rest can be left as defaults for now.
+
+| attribute | value |
+| --- | --- |
+| AMI | Amazon Linux 2 |
+| Type | t2.micro |
+| The rest | defaults |
+
+#### Creating a key pair
 
 After you click launch a dialog box will show up asking you to select a key pair or create a new one.
 
@@ -76,11 +88,15 @@ Create a new one and call it something like MyEC2Key.
 
 This key pair is used for authentication when logging onto the instance. Make sure you download it!
 
-Now your instance should be up and running. Go back to the EC2 page and have a look under running instances.
+#### Success!
+
+The instance should be up and running. Go back to the EC2 page and have a look under running instances.
 
 ### 2. SSH onto the instance
 
 Now the instance is up and running it's time to try and connect to it!
+
+#### Getting connected
 
 Go to the directory where you downloaded the SSH key.
 
@@ -89,12 +105,11 @@ Then try this command:
 ssh -i MyEC2Key ec2-user@<instance-ip-address>
 ```
 
-You'll need to go and find what the instance ip address is.
+You'll need to go and find what the instance ip address is. Check the help section at the end of this document if you are having trouble.
 
-You might get an error that says something about an unprotected key pair. See if you can find out how to fix it...
+You might get an error that says something about an unprotected key pair. See if you can find out how to fix it. Again refer to the help section if you are stumped.
 
-
-### 3. Update instance packages
+#### Success!
 
 If managed to successfully log onto the instance you should see something like this:
 
@@ -108,37 +123,48 @@ https://aws.amazon.com/amazon-linux-2/
 Run "sudo yum update" to apply all updates.
 ```
 
-You'll notice it's kindly asking us to update the packages on the instance. Keeping instances patched is a good habit to get into. When instances are publicly accessible through the internet we really want to make sure there are no security exploits that a hacker can take advantage of.
+### 3. Update instance packages
+
+#### Patch that sucker
+
+You'll notice as part of the login message, AWS politely asking us to update the packages on the instance. Keeping instances patched is a good habit to get into.
 
 If you run the command suggested above: `sudo yum update` your instance will get patched up. However you'll notice that it prompts you if you want to install the updates.
 
-In our case we always want to install the updates, and there are times that prompting for user input will break automation scripts that we write.
+#### Do, don't ask
+
+There are times that prompting for user input will break automation scripts that we write. If we have a script setup to run at 3:00am we don't want it to stop and ask for input.
 
 See if you can find a way of running the updates with getting prompted to enter `y`.
 
 Note: after you've run the updates once, the instance won't need updating again. So you'll need to crate a new instance to try it out.
 
-Follow the same steps as before. You don't need to generate a new SSH key, just select the one you created last time.
+Follow the same steps as before. You don't need to generate a new SSH key, select the one you created last time.
+
+#### Success!
+
+You have now patched up the instance and are ready to start installing Jenkins on it.
 
 ### 4. Install Jenkins
 
-Ok so we've spun up an instance and SSHed onto it. Now for some Jenkins installing action!
+We've spun up an instance and SSHed onto it. Now for some Jenkins installing action!
 
-#### 4.1 Where to find the package
+#### Where to find the package
 
 Linux software typically gets distributed as packages.
 
 There's a tool called YUM that is used to manage the downloading, installation and updating of those packages. There are other tools for other flavors of Linux, but we will just focus on YUM for now as that the manager that Amazon Linux 2 uses.
 
-#### 4.2 Configuring the YUM repo
+#### Configuring the YUM repo
 
 YUM needs to know a few things about the packages you want to install. The main ones being the name of the package and which YUM repository to get it from. This information get stored in `.repo` files in the following directory:
 ```
 /etc/yum.repos.d/
 ```
 
-Go to that directory now and take a look at the contents using:
+Go to that directory now and take a look at the contents like this:
 ```
+cd /etc/yum.repos.d
 ls -la
 ```
 
@@ -174,10 +200,11 @@ Now list the contents of the `/etc/yum.repos.d` directory again. You'll see some
 -rw-r--r--  1 root root   71 Nov 29  2016 jenkins.repo
 ```
 
-Sweet! Now try installing Jenkins again using YUM install. You should get prompted to download and install the package! Success!!
+Sweet! Now try installing Jenkins again using YUM install. You should get prompted to download and install the package!
 
+#### Not so fast
 
-Hahaha nah just kidding. Linux has a sick sense of humor, it was just lulling you into a false sense of security.
+Linux has a sick sense of humor, it was just lulling you into a false sense of security.
 
 Another error has popped up:
 
@@ -185,19 +212,24 @@ Another error has popped up:
 Public key for jenkins-2.135-1.1.noarch.rpm is not installed
 ```
 
-There are two ways to solve this error. One is obvious, install the public key. The other is not quite so obvious. See if you can find out what that is. The answer is just below, try to solve it before peeking!
+There are two ways to solve this error. One is obvious, install the public key (the error message tells us it's missing). 
+
+The other is not quite so obvious. See if you can find out what that is. The answer is just below, try to solve it before peeking!
+
+#### Package signing
 
 Packages can be signed by the package author, using their private key. This is done to validate the package is actually legitimate, and hasn't been compromised by a third party. To check the package is legit, you need to get the package authors public key.
 
-#### 4.3.1 Installing the public key
+The alternative is to disable key checking.
+
+##### Installing the public key
+
 To install the public key for the Jenkins package:
 ```
 sudo rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
 ```
 
-The other option you have is:
-
-#### 4.3.2 Disabling key checking
+#### Disabling key checking
 The other option is disabling key checking. This option is riskier, especially when you are downloading packages from public repositories. A field in the `.repo` file indicates whether key checking should occur or not.
 
 To check the contents of the Jenkins .repo file try:
@@ -220,7 +252,7 @@ press   `q` to exit less!
 
 The three commands do more or less the same thing (see what I did there??).
 
-#### 4.3 Installing the package
+#### Installing again
 
 Try again...
 
@@ -228,13 +260,17 @@ Try again...
 sudo yum install jenkins
 ```
 
-Success!!
+#### Success!
 
 The Jenkins package should now finally be installed!
 
-### 5. Start the Jenkins service
+We are almost there... There's now an EC2 instance running with Jenkins installed on it.
 
-Now that the package has been installed, it't time to boot it up.
+### 5. Starting Jenkins
+
+Now that Jankins has been installed, it't time to boot it up.
+
+#### Starting services
 
 Jenkins runs as a background service. Services in Amazon Linux 2 can be managed using a program called `systemctl`.
 
@@ -244,27 +280,32 @@ Starting the Jenkins service using using `systemctl` can be done in the followin
 sudo systemctl start jenkins.service
 ```
 
-That didn't go so well..
+#### Success?
+
+Not quite hey.
 
 The error message gives you directions on how to find out what went wrong.
 
-Have a read and see if you can fix the problem. If you have trouble, look up the appropriate section under Help at the end of this document.
+Have a read and see if you can fix the problem. If you have trouble, check out the help section at the end of the document.
 
 Now those errors are fixed up try starting the Jenkins service again.
 
-If you check the status of the service like this:
+
+#### Success!
+
+You can check that the service is running like this:
 
 ```
 systemctl status jenkins.service
 ```
 
-You should see that `systemctl` reports Jenkins is running. Success!
+Jenkins is now running. Let's get onto that management console.
 
-### 6. Access the Jenkins console
+### 6. Accessing the Jenkins console
 
 #### Getting in
 
-Now that Jenkins is finally up and running, lets try accessing the Jenkins management console. The Jenkins documentation tells us to access the console on port 8080.
+The Jenkins documentation tells us the console can be accessed on port 8080.
 
 So we should be able to get to the console by doing the following in a web browser:
 
@@ -274,7 +315,11 @@ http://<instance-public-ip>:8080
 
 The public IP is the same IP you have been using for SSH. Try accessing the console though a browser now.
 
-If you've followed the instructions so far, you won't be able to access the management console. You should notice the request times out. So what's the deal?
+#### What's the hold up?
+
+You should notice the request times out. So what's the deal?
+
+#### Debugging our connection
 
 Let's do some investigation.. We've been connecting to the instance via SSH. SSH works on port 22. Try poking the instance on port 22:
 
@@ -292,13 +337,6 @@ curl <instance-public-ip>:8080
 
 It hangs for a bit, then gives us error 7.
 
-Now, just for interest try:
-```
-curl google.com
-```
-
-We get a HTML response back from the server.
-
 So what's the deal with error 56 and error 7? How does this in anyway help us? We might need to know a little more about what these error messages mean. A quick google shows:
 
 ```
@@ -309,11 +347,13 @@ CURLE_COULDNT_CONNECT (7)
 Failed to connect() to host or proxy. 
 ```
 
-In one case, when we tried port 22 we didn't get any data back from the server. In the second case, when we tried port 8080 we couldn't even connect.
+In the first case on port 22 we connected but didn't get any data back from the server.
+
+In the second case, on port 8080 we couldn't even connect.
 
 Something must be blocking the connection to EC2 instance on port 8080.
 
-### Unblock me!
+#### Unblock me!
 
 There are two mechanisms that AWS uses for controlling network access to EC2 instances: security groups and NACLs. In this case the culprit is a security group.
 
@@ -321,7 +361,7 @@ You need to add a new security group rule to your instance that allows traffic o
 
 Head on into the AWS management console and give it a shot!
 
-### Success!
+#### We are in
 
 After adding the security group rule try using the curl command on port 8080 again.
 
@@ -335,11 +375,15 @@ http://<instance-public-ip>:8080
 
 The Jenkins management console should finally be greeting you!
 
-### The final step
+#### The final step
 
 Jenkins wants some proof that you are actually the administrator of this Jenkins instance. To make Jenkins happy, you better do what he says.
 
-SSH back onto the instance and grab the key from the file mentioned.
+SSH back onto the instance and grab the key from the file mentioned and enter it.
+
+#### Success!
+
+Well that's it!
 
 ## 7. Celebrate!!
 
@@ -347,7 +391,7 @@ Phew, that was an epic adventure! Congrats for getting though it all. You've cov
 
 One last thing, you might want to go into the AWS management console and terminate any instances you created as part of this little project.
 
-For the next project, we will do a similar thing, but not using the AWS console, it will be command line all the way instead!
+For the next project, we will do a similar thing, but not using the AWS console, it will be command line all the way!
 
 
 ## Help!!
