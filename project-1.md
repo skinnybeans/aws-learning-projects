@@ -74,10 +74,10 @@ EC2 what AWS call their cloud virtual machines. There are a massive range of dif
 
 For this project we want to use the following settings when launching the EC2 instance:
 
-| attribute | value |
+| step | value |
 | --- | --- |
-| AMI | Amazon Linux 2 |
-| Type | t2.micro |
+| step 1 - choose AMI | Amazon Linux 2 |
+| step 2- choose type | t2.micro |
 | The rest | defaults |
 
 #### Creating a key pair
