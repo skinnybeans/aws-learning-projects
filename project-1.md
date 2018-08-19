@@ -26,6 +26,10 @@ Create a user and add them to the _admin_ user group.
 
 You'll also need to generate an access key and secret id.
 
+### MFA
+
+Part of the checklist will ask that you set up MFA for the root user. For this you will need an MFA app for your mobile device. There are several available, I use Authy.
+
 ## Getting down to business
 
 This document will outline the steps you need to take to complete the project. At some points, things will not work. This has been done deliberately so you can see what kind of errors are produced and what actions can solve them.
@@ -230,6 +234,7 @@ sudo rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
 ```
 
 #### Disabling key checking
+
 The other option is disabling key checking. This option is riskier, especially when you are downloading packages from public repositories. A field in the `.repo` file indicates whether key checking should occur or not.
 
 To check the contents of the Jenkins .repo file try:
@@ -276,7 +281,7 @@ Jenkins runs as a background service. Services in Amazon Linux 2 can be managed 
 
 Starting the Jenkins service using using `systemctl` can be done in the following way:
 
-```
+```bash
 sudo systemctl start jenkins.service
 ```
 
@@ -295,7 +300,7 @@ Now those errors are fixed up try starting the Jenkins service again.
 
 You can check that the service is running like this:
 
-```
+```bash
 systemctl status jenkins.service
 ```
 
@@ -309,7 +314,7 @@ The Jenkins documentation tells us the console can be accessed on port 8080.
 
 So we should be able to get to the console by doing the following in a web browser:
 
-```
+```bash
 http://<instance-public-ip>:8080
 ```
 
@@ -323,7 +328,7 @@ You should notice the request times out. So what's the deal?
 
 Let's do some investigation.. We've been connecting to the instance via SSH. SSH works on port 22. Try poking the instance on port 22:
 
-```
+```bash
 curl <instance-public-ip>:22
 ```
 
@@ -331,7 +336,7 @@ We get error code 56 back pretty quickly after executing the command.
 
 Now try on port 8080:
 
-```
+```bash
 curl <instance-public-ip>:8080
 ```
 
@@ -360,6 +365,8 @@ There are two mechanisms that AWS uses for controlling network access to EC2 ins
 You need to add a new security group rule to your instance that allows traffic on port 8080.
 
 Head on into the AWS management console and give it a shot!
+
+If you are having trouble, check out the help section at the end of the document.
 
 #### We are in
 
@@ -445,3 +452,25 @@ Oracle is the gatekeeper of Java now, but you can also get an open sourced versi
 ```
 sudo yum install java-1.8.0-openjdk
 ```
+
+### I'm stumped by the security group!
+
+When you launched the EC2 instance, you would have likely created a new security group with the default rule set. The default rule allows incoming traffic from any IP address on port 22 to reach the instance.
+
+We need to modify the exiting security group attached to the instance to allow incoming traffic on port 8080 to also reach the instance.
+
+Here are some steps to do that:
+
+1. Log into the AWS console.
+1. Navigate to the EC2 section.
+1. Select the instance you launched.
+1. In the _description_ section, locate the _security groups_ field.
+1. Click on the security group. This should take you to the _security groups_ screen.
+1. Click the actions button and select _Edit inbound rules_
+1. Create a new rule with the following details:
+
+| Type| Protocol| Port Range| Source|
+| --- | ---     | ---       | ---   |
+| Custom TCP| TCP | 8080 | 0.0.0.0/0 |
+
+Save the changes and see if you can now hit the instance.
