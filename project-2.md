@@ -122,7 +122,11 @@ We want to use the same instance type as when launching though the console.
 
 #### Key name
 
-Use the same key that you generated as part of project 1. If you've forgotten the key pair name, the help section shows how you can get a list of all they keys related to you account using the AWS console.
+Use the same key that you generated as part of project 1. If you've forgotten the key pair name, try running this from your command line:
+
+```bash
+aws ec2 describe-key-pairs --query KeyPairs[*].KeyName
+```
 
 #### Launch is go
 
@@ -167,39 +171,37 @@ Once that's working try these slightly harder exercises. If you are having troub
 
 ##### 2. Selecting instance ID and status
 
-Display the instance id and state name using _dictionary notation_. The output should look like this:
+Display the instance id and state name using _array notation_. The output should look like this:
 
 ```bash
 [
     [
-        {
-            "Status": "running", 
-            "ID": "i-0646340377ed06d52"
-        }
+        [
+            "i-0ce97e3575305bd47", 
+            "running"
+        ]
     ]
 ]
 ```
 
 ##### 3. Selecting instance ID, status and public IP
 
-Display the instance id, status and public IP using _array notation_. The output should look something like this.
+Display the instance id, status and public IP using _dictionary notation_. The output should look something like this.
 
 ```bash
 [
     [
-        [
-            "i-0646340377ed06d52", 
-            "running", 
-            [
-                "54.252.240.52"
-            ]
-        ]
+        {
+            "publicIP": "54.206.58.107", 
+            "state": "running", 
+            "id": "i-0ce97e3575305bd47"
+        }
     ]
 ]
 ```
 
 
-#### Filtering records
+##### 4. Filtering records
 
 The results we get back now are much more usable. Because we have only have one instance running, it's pretty easy to find what we need. As the number of instances grow, we are going to need another technique to help keep the command line output manageable.
 
@@ -209,44 +211,28 @@ Launch a second instance in your account and see if you can run a `aws ec2 descr
 
 Check out the help section for guidance if you get stuck.
 
-### create the instance
-```bash
-aws ec2 run-instances --image-id 'ami-39f8215b' --security-group-ids 'sg-21bd3b59' --count 1 --instance-type t2.micro --key-name "MyEC2KeyPair" --query 'Instances[0].InstanceId'
-```
-_remember your instance-id_
-i-0b4e5483cd5c2a905
-
-### to connect to it we now need the instance ip address
-
-#### find the IP address
-aws ec2 describe-instances --query 'Reservations[*].Instances[?InstanceId==`i-0b4e5483cd5c2a905`].NetworkInterfaces[*].Association.PublicIp'
-
-_remember your ip-address_
-13.211.62.213
-
-
 ## Now connect!
 
+As we did in project 1, let's SSH onto the box and check everything is up and running:
+
 ```bash
-ssh -i _keyname_ ec2-user@_ip-address_
+ssh -i $keyname ec2-user@$ip_address
 ```
 
-ssh -i MyEC2KeyPair ec2-user@13.211.62.213
+If you can't remember the public IP address of the instance, try using `aws ec2 describe-instances` and an appropriate query to find it.
 
 ## do the jenkins install and run things here..
+
+Ansible things...
 
 
 ## now connect to the management console
 http://13.211.62.213:8080
 
-## need to add port 8080 to the security group
-
-```bash
-aws ec2 authorize-security-group-ingress --group-id "sg-21bd3b59" --protocol "tcp" --port "8080" --cidr "0.0.0.0/0"
-```
 
 
 ## Stop the instance
+
 ```bash
 aws ec2 stop-instances --instance-id "i-0b4e5483cd5c2a905"
 ```
@@ -264,6 +250,7 @@ aws ec2 terminate-instances --instance-id "i-0b4e5483cd5c2a905"
 ```
 
 ## Check the status again
+
 ```bash
 aws ec2 describe-instances --instance-id "i-0b4e5483cd5c2a905" --query Reservations[0].Instances[0].State.Name
 ```
@@ -281,13 +268,15 @@ It should show the AMI ID there, and it should be something like: ami-39f8215b
 #### Security group
 
 To create the security group
+
 ```bash
 aws ec2 create-security-group --description 'jenkins group' --group-name 'jenkins-group'
 ```
 
 Note down the ID of the group once it's created.
 
-To add the SSH connectivity on port 22 (replace $security_group_id):
+To add the SSH connectivity on port 22:
+
 ```bash
 aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol "tcp" --port "22" --cidr "0.0.0.0/0"
 ```
@@ -299,14 +288,6 @@ Sticking to the free tier so use:
 ```
 t2.micro
 ```
-
-#### Key pair
-
-If you've forgotten the name of your key pair, you can check the names of available key pairs from the command line by running:
-```bash
-aws ec2 describe-key-pairs --query KeyPairs[*].KeyName
-```
-
 
 ### I can't get the query working!
 
