@@ -142,7 +142,7 @@ See if you can locate the InstanceId of the instance you just created.
 
 Pretty painful right?
 
-We can get this information for all the instances running like this:
+We can get this information for all the instances in the account like this:
 
 ```
 aws ec2 describe-instances
@@ -152,17 +152,20 @@ You can imagine if you had many instances running, reading through this informat
 
 Yes, yes there is.
 
-#### Filtering output
+#### Selecting fields
 
 Fortunately there's an easier way to find information we are interested in, queries.
 
 AWS provide some good information on how to do this over here: https://docs.aws.amazon.com/cli/latest/userguide/controlling-output.html#controlling-output-filter
 
+
+##### 1. Selecting instance ID
+
 See if you can filter the output of the `ec2 describe-instance` command to only show the instance id.
 
-Once that's working try these slightly harder exercises. If you are having trouble check out the help section.
+Once that's working try these slightly harder exercises. If you are having trouble check out the help section. The AWS link above explains what _dictionary notation_ and _array notation_ are.
 
-##### 1. Instance ID and status
+##### 2. Selecting instance ID and status
 
 Display the instance id and state name using _dictionary notation_. The output should look like this:
 
@@ -177,7 +180,7 @@ Display the instance id and state name using _dictionary notation_. The output s
 ]
 ```
 
-##### 2. Instance ID, status and public IP
+##### 3. Selecting instance ID, status and public IP
 
 Display the instance id, status and public IP using _array notation_. The output should look something like this.
 
@@ -196,18 +199,15 @@ Display the instance id, status and public IP using _array notation_. The output
 ```
 
 
-```
-aws ec2 describe-instances --query 'Reservations[*].Instances[*].{ID:InstanceId,Status:State.Name}'
+#### Filtering records
 
-aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name]'
+The results we get back now are much more usable. Because we have only have one instance running, it's pretty easy to find what we need. As the number of instances grow, we are going to need another technique to help keep the command line output manageable.
 
-aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name, NetworkInterfaces[*].Association.PublicIp]'
-```
+The AWS documentation describes a way to limit the results to records that match a specified criteria.
 
-#### Filtering instances
+Launch a second instance in your account and see if you can run a `aws ec2 describe-instances` that only returns one of the two instances in the results. The `InstanceID` is a good field to use for this exercise.
 
-
-
+Check out the help section for guidance if you get stuck.
 
 ### create the instance
 ```bash
@@ -310,3 +310,76 @@ aws ec2 describe-key-pairs --query KeyPairs[*].KeyName
 
 ### I can't get the query working!
 
+Help for each of the queries to get you going.
+
+#### 1. Instance ID
+
+```
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId]'
+```
+
+
+#### 2. Instance ID and status
+
+Using array notation:
+
+```
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId, State.Name]'
+```
+
+#### 3. Instance ID, status and public IP
+
+Using dictionary notation:
+
+```
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].{id:InstanceId, state:State.Name, publicIP:PublicIpAddress}'
+```
+
+Get all running instance:
+```
+aws ec2 describe-instances --query 'Reservations[*].Instances[?State.Name==`running`]'.[InstanceId,State.Name,Tags]
+```
+
+#### 4. Filtering to one instance
+
+##### The conditional expression
+
+The AWS documentation tell us that `?` can be used to specify a conditional operation.
+
+In this case, if we are filtering on InstanceID, the conditional would look like:
+```
+?InstanceId===`i-4345343453454`
+```
+
+Of course put the InstanceID that you are searching for in there.
+
+##### Where to put the conditional
+
+The conditional expression must be put in a position where more than one element exists. If there is only one element, then there is nothing to conditionally select.
+
+An array holds a collection of elements, so that's a good place to put our conditional.
+
+If we take a look back at one of the query strings previously used we can see there are two arrays (the parts with `[*]`:
+
+```
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].{id:InstanceId, state:State.Name, publicIP:PublicIpAddress}'
+```
+
+As we are selecting based on the instance id, it makes sense to place the conditional in the `Instances` array like this:
+
+```
+aws ec2 describe-instances --query 'Reservations[*].Instances[?InstanceId==`i-4345343453454`].{id:InstanceId, state:State.Name, publicIP:PublicIpAddress}'
+```
+
+https://jmespath.readthedocs.io/en/latest/specification.html#filter-expressions
+
+
+
+
+```
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].{ID:InstanceId,Status:State.Name}'
+
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name]'
+
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name, NetworkInterfaces[*].Association.PublicIp]'
+```
