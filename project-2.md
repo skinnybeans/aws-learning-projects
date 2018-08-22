@@ -221,10 +221,168 @@ ssh -i $keyname ec2-user@$ip_address
 
 If you can't remember the public IP address of the instance, try using `aws ec2 describe-instances` and an appropriate query to find it.
 
-## do the jenkins install and run things here..
+## Install Jenkins
 
-Ansible things...
+Originally I was going to keep this section the same as project 1. The would be a bit easy though, and the whole idea of these projects is to learn new things, so lets dive into Ansible!
 
+### What's Ansible?
+
+Ansible provides a way of automating configuration management of servers. It can be used for managing datacenter based servers and VMs as well as cloud based services.
+
+There are a couple of other popular tools for doing the same thing such as Puppet and Salt.
+
+### Ansible terminology
+
+#### Control node
+
+Ansible doesn't have to run on the host that it's configuring. It can run on a different host, and this is the way its been traditionally used. The control node connects to hosts via SSH then runs a set of commands against it.
+
+In this project, your local machine will act as the control node.
+
+#### Hosts
+
+Also called managed nodes. These are the machines that we want to configure. Ansible provides ways of classifying groups of hosts. So you could for example run a set of Ansible commands against only your database servers or web severs. This listing of servers is called an _inventory_ in Ansible speak.
+
+In this project, the EC2 instance we want to install Jenkins on will be the only host.
+
+#### Playbooks
+
+Playbooks contain the commands that you want to run on the hosts. The playbook will be run on the _control node_ by use the `ansible-playbook` command. Ansible will then connect to the hosts that have been specified and execute the commands in the playbook.
+
+### Our first Ansible
+
+Just like we can use the `ping` command to see if a server is up and running, Ansible has a ping module that can be used to check if the host we are connecting to is available.
+
+The syntax of this command:
+```bash
+ansible $hosts -m ping
+```
+
+`hosts` specifies which hosts we want to run the command on. We will build a host file to reference in here.
+
+`-m` specifies which Ansible module to use, in this case we just want to execute the ping module.
+
+#### The hosts file
+
+The hosts file, or inventory file lists all the hosts we want to manage using Ansible. We will start off with just one host.
+
+Save the following text in a file called `my-hosts.yml`. Replace the `ansible_host` IP with the public IP of your EC2 instance.
+
+```yml
+jenkins-boxes:
+  hosts:
+    jenkins-box-1:
+      ansible_host: 54.206.58.107
+      ansible_user: ec2-user
+```
+
+First up this file declares a group of hosts called `jenkins-boxes`. In this example we are only going to have one host `jenkins-box-1`.
+
+You can probably figure out that `ansible_host` specifies the IP address of the host and `ansible_user` is the user we are going to use for the connection.
+
+#### Ping
+
+So lets try doing an Ansible ping to the server:
+
+```bash
+ansible -i my-hosts.yml -m ping
+```
+
+#### Oops
+
+If you followed the instructions correctly, it should have failed:
+
+```
+ERROR! Missing target hosts
+```
+
+Hang on, didn't we just pass in an inventory file to the command that contained hosts in it? After all that's what the `-i` stands for (inventory).
+
+Our inventory file only has one host. Imagine it had more, something like this:
+
+```yml
+jenkins-boxes:
+  hosts:
+    jenkins-box-1:
+      ansible_host: 54.206.58.107
+      ansible_user: ec2-user
+    jenkins-box-2:
+      ansible_host: 54.206.58.108
+      ansible_user: ec2-user
+database-boxes:
+  hosts:
+    db-box-1:
+      ansible_host: 54.206.59.107
+      ansible_user: ec2-user
+```
+
+Ansible needs to know which hosts we want to run the command on, it won't automatically run it against every host in the file. Think of it as a safety check.
+
+Let's try running the command again:
+
+```
+ansible -i my-hosts.yml jenkins-box-1 -m ping
+```
+
+#### ARGH!!
+
+One of two likely outcomes has just occurred.
+
+##### 1. Copy paste has a bug in it
+
+If you saw a lot of purple warning text output to the command line that looked like this:
+
+```
+ [WARNING]:  * Failed to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-hosts.yml with yaml plugin: Syntax Error while loading
+YAML.   mapping values are not allowed in this context  The error appears to have been in '/Users/skinnybeans/Documents/AWS-projects/ansible-test
+/my-hosts.yml': line 4, column 19, but may be elsewhere in the file depending on the exact syntax problem.  The offending line appears to be:
+jenkins-box-1       ansible_host: 54.206.58.107                   ^ here
+
+ [WARNING]:  * Failed to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-hosts.yml with ini plugin: /Users/skinnybeans/Documents
+/AWS-projects/ansible-test/my-hosts.yml:4: Expected key=value host variable assignment, got: 54.206.58.107
+
+ [WARNING]:  * Failed to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-hosts.yml with auto plugin: Syntax Error while loading
+YAML.   mapping values are not allowed in this context  The error appears to have been in '/Users/skinnybeans/Documents/AWS-projects/ansible-test
+/my-hosts.yml': line 4, column 19, but may be elsewhere in the file depending on the exact syntax problem.  The offending line appears to be:
+jenkins-box-1       ansible_host: 54.206.58.107                   ^ here
+
+ [WARNING]: Unable to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-hosts.yml as an inventory source
+
+ [WARNING]: No inventory was parsed, only implicit localhost is available
+```
+
+Your hosts file isn't correctly formatted. YAML is very picky with spacing, and doesn't like tabs at all.
+
+Try fixing up the hosts file formatting. There's some guidance offered over at https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html
+
+##### 2. You followed instructions correctly
+
+In this case, you'll see another error:
+
+```
+jenkins-box-1 | UNREACHABLE! => {
+    "changed": false, 
+    "msg": "Failed to connect to the host via ssh: ec2-user@54.206.58.107: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).\r\n", 
+    "unreachable": true
+}
+```
+
+From the error message we can see some familiar looking snippets: `ssh`, `ec2-user@54.206.58.107`, `Permission denied`.
+
+Ansible is trying to connect to the host via ssh as the user `ec2-user`. However there is something missing here... When you manually log into the instance using ssh there was another piece of information that you provided, otherwise the `permission denied` exception occurred.
+
+See if you can work out what that was, and get the Ansible command working correctly. If you are stumped, check out the help section.
+
+#### Ping pong
+
+Now it should all work! The command line output:
+
+```
+jenkins-box-1 | SUCCESS => {
+    "changed": false, 
+    "ping": "pong"
+}
+```
 
 ## now connect to the management console
 http://13.211.62.213:8080
@@ -355,7 +513,25 @@ aws ec2 describe-instances --query 'Reservations[*].Instances[?InstanceId==`i-43
 https://jmespath.readthedocs.io/en/latest/specification.html#filter-expressions
 
 
+### I can't get ansible ping working
 
+The missing piece of the puzzle here is a private key file.
+
+When manually using ssh to connect, we did something like this:
+```
+ssh -i MyKeyFile.pem ec2-user@123.34.111.204
+```
+
+Ansible also uses ssh to connect, so the EC2 instance will also require it has the correct credentials for ssh access.
+
+The Ansible documentation shows the syntax needed for specifying a private key file:
+https://ansible-tips-and-tricks.readthedocs.io/en/latest/ansible/commands/#running-ansible-as-a-different-user
+
+So the final command we want to run looks like this:
+
+```bash
+ansible -i my-hosts.yml jenkins-box-1 -m ping --private-key ~/MyKeyFile.pem
+```
 
 ```
 aws ec2 describe-instances --query 'Reservations[*].Instances[*].{ID:InstanceId,Status:State.Name}'
