@@ -384,7 +384,91 @@ jenkins-box-1 | SUCCESS => {
 }
 ```
 
+We now have an EC2 instance that's ready for configuration by Ansible.
+
+#### Installing the Jenkins things
+
+I briefly touched on `playbooks` when introducing Ansible terminology. A playbook provides a mechanism of grouping commands together. The kind of commands that could install Jenkins on an EC2 instance.
+
+Playbooks are executed slightly differently to the `ping` command we used before:
+
+```bash
+ansible-playbook -i $inventory_file $playbook
+```
+
+Let's try running a simple playbook, save the following into a file called `my-playbook.yml`
+
+```yaml
+---
+
+- hosts: jenkins-boxes
+  gather_facts: true
+  become: yes
+  become_method: sudo
+
+  tasks:
+    - name: Just some debug messaging
+      debug:
+         msg: "I am connecting to {{ ansible_nodename }} which is running {{ ansible_distribution }} {{ ansible_distribution_version }}"
+```
+
+Now let's check the syntax of the playbook is correct:
+
+```bash
+ansible-playbook -i my-hosts.yml my-playbook.yml --syntax-check
+```
+
+You should see:
+
+```
+playbook: my-playbook.yml
+```
+
+Which means we are good to go. Just one more thing before we run the playbook for real. Let's see which hosts the playbook will run on:
+
+```
+ansible-playbook -i my-hosts.yml my-playbook.yml --list-hosts
+```
+
+If everything has gone well so far your output should look something like:
+
+```
+playbook: my-playbook.yml
+
+  play #1 (jenkins-boxes): jenkins-boxes	TAGS: []
+    pattern: [u'jenkins-boxes']
+    hosts (1):
+      jenkins-box-1
+```
+
+It looks like it will run on a set of hosts matching `jenkins-boxes`, of which there is one host `jenkins-box-1`.
+
+Finally, run the sucker:
+
+```
+ansible-playbook -i my-hosts.yml my-playbook.yml
+```
+
+Nope, not going to happen. We've got permission errors again. Must have forgot something, but I'm sure you can remember right?
+
+If not, check out the help.
+
+
+Specifying the private key file all the time becomes a pain. Also, what if we have lots of hosts in the inventory file and they all use different private keys? There must be a better way!
+
+There is a better way. The private key file for a host can be specified in the inventory file. The Ansible documentation will tell you how: https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html#list-of-behavioral-inventory-parameters
+
+
+
+
+
+
+
+
+
+
 ## now connect to the management console
+
 http://13.211.62.213:8080
 
 
@@ -540,3 +624,12 @@ aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,Sta
 
 aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,State.Name, NetworkInterfaces[*].Association.PublicIp]'
 ```
+
+### I can't get my playbook to run!
+
+Fairly straight forward, the ssh private key file needs to be included in the command. The full command should look like:
+
+```
+ansible-playbook -i my-hosts.yml my-playbook.yml --private-key ~/MyKeyFile.pem
+```
+
