@@ -451,20 +451,72 @@ ansible-playbook -i my-hosts.yml my-playbook.yml
 
 Nope, not going to happen. We've got permission errors again. Must have forgot something, but I'm sure you can remember right?
 
-If not, check out the help.
+
+#### Adding the private key to the inventory file
 
 
 Specifying the private key file all the time becomes a pain. Also, what if we have lots of hosts in the inventory file and they all use different private keys? There must be a better way!
 
 There is a better way. The private key file for a host can be specified in the inventory file. The Ansible documentation will tell you how: https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html#list-of-behavioral-inventory-parameters
 
+When you have this working correctly, you should be able to run the playbook without having to specify the private key on the command line.
 
+### Configuring the instance
 
+The instance is up and running and we can run an Ansible playbook against. Now's the time to get Jenkins installed using the playbook we started.
 
+The playbook calls Ansible modules. There are a range of modules available for different tasks. For example, there's a `yum` module that executes `yum` commands. It's also possible to run commands as if they were entered on the command line of the host using the `command` module.
 
+To get you started, update your playboook so it looks like this:
 
+```yaml
+---
 
+- hosts: boxes
+  gather_facts: true
+  become: yes
+  become_method: sudo
 
+  tasks:
+    - name: Just some debug messaging
+      debug:
+         msg: "I am connecting to {{ ansible_nodename }} which is running {{ ansible_distribution }} {{ ansible_distribution_version }}"
+    - name: Updating packages
+      yum:
+        name: "*"
+        state: "latest"
+```
+
+Note the spacing of the new command aligns with the previous one.
+
+A new task has been added. This new task will call the `yum` module and update all packages on the host to the latest version. You'll notice there are two name properties under the newly added task. This shows why correct indenting must be used. The `name: Updating packages` relates to the name of the task. The second occurrence of name, `name: "*"` relates to the `yum` module. It tells the module to execute on all currently installed packages.
+
+Running the newly modified playbook should result in the packages on the instance being updated. You won't all of the update output that you saw when logged into the instance. You'll be presented with this unassuming line:
+
+```
+TASK [Updating packages] *************
+changed: [jenkins-box-1]
+```
+
+Try running the playbook again and see what happens.
+
+### Installing Jenkins
+
+The steps we need to take are the same as for project 1. Just as a reminder, here are the `name` of each task I used in my playbook for getting Jenkins up and running:
+
+```yaml
+    - name: Jenkins YUM config
+
+    - name: Jenkins public key
+
+    - name: install jenkins
+
+    - name: install openjdk jre
+
+    - name: start Jenkins if it isn't running
+```
+
+Using this as a guide, fill in the gaps! You can use the `command` module for all of them. Look up the Ansible help on how to use `command`.
 
 
 ## now connect to the management console
@@ -633,3 +685,17 @@ Fairly straight forward, the ssh private key file needs to be included in the co
 ansible-playbook -i my-hosts.yml my-playbook.yml --private-key ~/MyKeyFile.pem
 ```
 
+### Adding the private key to the inventory file
+
+The property we are looking for here is `ansible_ssh_private_key_file`
+
+So the inventory file should look like this:
+
+```
+jenkins-boxes:
+  hosts:
+    jenkins-box-1:
+      ansible_host: 54.206.58.107
+      ansible_user: ec2-user
+      ansible_ssh_private_key_file: ~/Documents/ssh/MyEC2KeyPair.pem
+```
