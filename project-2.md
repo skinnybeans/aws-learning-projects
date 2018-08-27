@@ -516,20 +516,68 @@ The steps we need to take are the same as for project 1. Just as a reminder, her
     - name: start Jenkins if it isn't running
 ```
 
+Project 1 contains the exact command line commands that were run for each of these steps.
+
 Using this as a guide, fill in the gaps! You can use the `command` module for all of them. Look up the Ansible help on how to use `command`.
 
+You will notice that when you run the playbook, Ansible gives suggestions for other modules to use instead of `command`. For example, when downloading a file using the `get_url` module is recommended. After you have a task working with the `command` module, switch to using the Ansible recommended module where possible.
 
-## now connect to the management console
-
-http://13.211.62.213:8080
-
+If you are having problems, look at the help section for the completed playbook.
 
 
-## Stop the instance
+### Success!
+
+If the playbook ran successfully you should now be able to connect to the Jenkins management console on port 8080. If you are having trouble connecting, make sure you add a rule to the security group to allow inbound traffic on port 8080. Use the command line!
+
+## Clean up
+
+Now we just need to clean up the instance. There are a few different states and instance can be in:
+
+| code | name | description |
+| --- | --- | --- |
+| 0 | pending | instance starting up |
+| 16 | running | instance started and available for use |
+| 32 | shutting-down | instance entering the terminated state |
+| 48 | terminated | instance has been destroyed |
+| 64 | stopping | instance entering the stopping state |
+| 80 | stopped | instance stopped. Can be started again or terminated |
+
+Let's check the current status of the instance:
+
+```
+aws ec2 describe-instance-status
+```
+
+Or using our `query` powers gained earlier:
+
+```
+aws ec2 describe-instance-status --query 'InstanceStatuses[*].[InstanceId, InstanceState]'
+```
+
+How about we stop the instance (use your instance id):
 
 ```bash
 aws ec2 stop-instances --instance-id "i-0b4e5483cd5c2a905"
 ```
+
+You'll see the output tells you the instance is now stopping. Try checking the status again
+
+```
+aws ec2 describe-instance-status
+```
+
+Hmm no instances... Where did it go??
+
+How about trying this:
+```
+aws ec2-descibe-instances
+```
+
+Ok so it shows up there... Check out the AWS documentation for `descibe-instance-status` and see if you can find out what's going on. There is a way to make `descibe-instance-status` show the instance we just stopped.
+
+
+
+
 
 ## Check the instance is stopped
 
@@ -574,6 +622,8 @@ To add the SSH connectivity on port 22:
 ```bash
 aws ec2 authorize-security-group-ingress --group-id $security_group_id --protocol "tcp" --port "22" --cidr "0.0.0.0/0"
 ```
+
+Remember to add inbound connectivity on port 8080 too!
 
 #### Instance type
 
@@ -698,4 +748,47 @@ jenkins-boxes:
       ansible_host: 54.206.58.107
       ansible_user: ec2-user
       ansible_ssh_private_key_file: ~/Documents/ssh/MyEC2KeyPair.pem
+```
+
+### I can't get the final playbook working
+
+Here's the complete playbook for your automation pleasure:
+
+```yaml
+---
+
+- hosts: jenkins-boxes
+  gather_facts: true
+  become: yes
+  become_method: sudo
+
+  tasks:
+    - name: Just some debug messaging
+      debug:
+         msg: "I am connecting to {{ ansible_nodename }} which is running {{ ansible_distribution }} {{ ansible_distribution_version }}"
+    - name: Updating packages
+      yum:
+        name: "*"
+        state: "latest"
+    - name: Jenkins YUM config
+      get_url:
+        url: http://pkg.jenkins.io/redhat/jenkins.repo
+        dest: /etc/yum.repos.d/jenkins.repo
+    - name: Jenkins public key
+      command: rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
+      args:
+        warn: no
+    - name: install jenkins
+      yum:
+        name: jenkins
+        state: latest
+    - name: install openjdk jre
+      yum:
+        name: java-1.8.0-openjdk
+        state: latest
+    - name: start Jenkins if it isn't running
+      service:
+        name: jenkins
+        state: started
+
 ```
