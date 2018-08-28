@@ -25,8 +25,6 @@ It may sound simple, but there are a few traps to negotiate!
 
 ## Project-2
 
-Still a work inprogress
-
 ### Outline
 
 - Using the AWS command line
