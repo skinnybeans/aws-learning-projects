@@ -255,18 +255,18 @@ Just like we can use the `ping` command to see if a server is up and running, An
 
 The syntax of this command:
 ```bash
-ansible $hosts -m ping
+ansible -i $inventory_file -m ping
 ```
 
-`hosts` specifies which hosts we want to run the command on. We will build a host file to reference in here.
+`-i` specifies which hosts we want to run the command on. We will build an inventory file to reference here.
 
 `-m` specifies which Ansible module to use, in this case we just want to execute the ping module.
 
-#### The hosts file
+#### The inventory file
 
-The hosts file, or inventory file lists all the hosts we want to manage using Ansible. We will start off with just one host.
+The inventory file lists all the hosts we want to manage using Ansible. We will start off with just one host.
 
-Save the following text in a file called `my-hosts.yml`. Replace the `ansible_host` IP with the public IP of your EC2 instance.
+Save the following text in a file called `my-inventory.yml`:
 
 ```yml
 jenkins-boxes:
@@ -278,14 +278,14 @@ jenkins-boxes:
 
 First up this file declares a group of hosts called `jenkins-boxes`. In this example we are only going to have one host `jenkins-box-1`.
 
-You can probably figure out that `ansible_host` specifies the IP address of the host and `ansible_user` is the user we are going to use for the connection.
+You can probably figure out that `ansible_host` specifies the IP address of the host and `ansible_user` is the user we are going to use for the connection. You'll need to change the IP address to match your EC2 public IP.
 
 #### Ping
 
 So lets try doing an Ansible ping to the server:
 
 ```bash
-ansible -i my-hosts.yml -m ping
+ansible -i my-inventory.yml -m ping
 ```
 
 #### Oops
@@ -296,7 +296,7 @@ If you followed the instructions correctly, it should have failed:
 ERROR! Missing target hosts
 ```
 
-Hang on, didn't we just pass in an inventory file to the command that contained hosts in it? After all that's what the `-i` stands for (inventory).
+Hang on, didn't we just pass in an inventory file to the command that contained hosts in it?
 
 Our inventory file only has one host. Imagine it had more, something like this:
 
@@ -321,7 +321,7 @@ Ansible needs to know which hosts we want to run the command on, it won't automa
 Let's try running the command again:
 
 ```
-ansible -i my-hosts.yml jenkins-box-1 -m ping
+ansible -i my-inventory.yml jenkins-box-1 -m ping
 ```
 
 #### ARGH!!
@@ -333,20 +333,20 @@ One of two likely outcomes has just occurred.
 If you saw a lot of purple warning text output to the command line that looked like this:
 
 ```
- [WARNING]:  * Failed to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-hosts.yml with yaml plugin: Syntax Error while loading
+ [WARNING]:  * Failed to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-inventory.yml with yaml plugin: Syntax Error while loading
 YAML.   mapping values are not allowed in this context  The error appears to have been in '/Users/skinnybeans/Documents/AWS-projects/ansible-test
-/my-hosts.yml': line 4, column 19, but may be elsewhere in the file depending on the exact syntax problem.  The offending line appears to be:
+/my-inventory.yml': line 4, column 19, but may be elsewhere in the file depending on the exact syntax problem.  The offending line appears to be:
 jenkins-box-1       ansible_host: 54.206.58.107                   ^ here
 
- [WARNING]:  * Failed to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-hosts.yml with ini plugin: /Users/skinnybeans/Documents
-/AWS-projects/ansible-test/my-hosts.yml:4: Expected key=value host variable assignment, got: 54.206.58.107
+ [WARNING]:  * Failed to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-inventory.yml with ini plugin: /Users/skinnybeans/Documents
+/AWS-projects/ansible-test/my-inventory.yml:4: Expected key=value host variable assignment, got: 54.206.58.107
 
- [WARNING]:  * Failed to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-hosts.yml with auto plugin: Syntax Error while loading
+ [WARNING]:  * Failed to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-inventory.yml with auto plugin: Syntax Error while loading
 YAML.   mapping values are not allowed in this context  The error appears to have been in '/Users/skinnybeans/Documents/AWS-projects/ansible-test
-/my-hosts.yml': line 4, column 19, but may be elsewhere in the file depending on the exact syntax problem.  The offending line appears to be:
+/my-inventory.yml': line 4, column 19, but may be elsewhere in the file depending on the exact syntax problem.  The offending line appears to be:
 jenkins-box-1       ansible_host: 54.206.58.107                   ^ here
 
- [WARNING]: Unable to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-hosts.yml as an inventory source
+ [WARNING]: Unable to parse /Users/skinnybeans/Documents/AWS-projects/ansible-test/my-inventory.yml as an inventory source
 
  [WARNING]: No inventory was parsed, only implicit localhost is available
 ```
@@ -415,7 +415,7 @@ Let's try running a simple playbook, save the following into a file called `my-p
 Now let's check the syntax of the playbook is correct:
 
 ```bash
-ansible-playbook -i my-hosts.yml my-playbook.yml --syntax-check
+ansible-playbook -i my-inventory.yml my-playbook.yml --syntax-check
 ```
 
 You should see:
@@ -427,7 +427,7 @@ playbook: my-playbook.yml
 Which means we are good to go. Just one more thing before we run the playbook for real. Let's see which hosts the playbook will run on:
 
 ```
-ansible-playbook -i my-hosts.yml my-playbook.yml --list-hosts
+ansible-playbook -i my-inventory.yml my-playbook.yml --list-hosts
 ```
 
 If everything has gone well so far your output should look something like:
@@ -446,14 +446,12 @@ It looks like it will run on a set of hosts matching `jenkins-boxes`, of which t
 Finally, run the sucker:
 
 ```
-ansible-playbook -i my-hosts.yml my-playbook.yml
+ansible-playbook -i my-inventory.yml my-playbook.yml
 ```
 
 Nope, not going to happen. We've got permission errors again. Must have forgot something, but I'm sure you can remember right?
 
-
 #### Adding the private key to the inventory file
-
 
 Specifying the private key file all the time becomes a pain. Also, what if we have lots of hosts in the inventory file and they all use different private keys? There must be a better way!
 
@@ -524,10 +522,9 @@ You will notice that when you run the playbook, Ansible gives suggestions for ot
 
 If you are having problems, look at the help section for the completed playbook.
 
-
 ### Success!
 
-If the playbook ran successfully you should now be able to connect to the Jenkins management console on port 8080. If you are having trouble connecting, make sure you add a rule to the security group to allow inbound traffic on port 8080. Use the command line!
+If the playbook ran successfully you should now be able to connect to the Jenkins management console on port 8080. If you are having trouble connecting, make sure you add a rule to the security group to allow inbound traffic on port 8080. Use the command line! Look up the AWS docs if you need to.
 
 ## Clean up
 
@@ -722,7 +719,7 @@ https://ansible-tips-and-tricks.readthedocs.io/en/latest/ansible/commands/#runni
 So the final command we want to run looks like this:
 
 ```bash
-ansible -i my-hosts.yml jenkins-box-1 -m ping --private-key ~/MyKeyFile.pem
+ansible -i my-inventory.yml jenkins-box-1 -m ping --private-key ~/MyKeyFile.pem
 ```
 
 ```
@@ -738,7 +735,7 @@ aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,Sta
 Fairly straight forward, the ssh private key file needs to be included in the command. The full command should look like:
 
 ```
-ansible-playbook -i my-hosts.yml my-playbook.yml --private-key ~/MyKeyFile.pem
+ansible-playbook -i my-inventory.yml my-playbook.yml --private-key ~/MyKeyFile.pem
 ```
 
 ### Adding the private key to the inventory file
