@@ -562,40 +562,46 @@ aws ec2 stop-instances --instance-id "i-0b4e5483cd5c2a905"
 
 You'll see the output tells you the instance is now stopping. Try checking the status again
 
-```
+```bash
 aws ec2 describe-instance-status
 ```
 
 Hmm no instances... Where did it go??
 
 How about trying this:
-```
+
+```bash
 aws ec2-descibe-instances
 ```
 
 Ok so it shows up there... Check out the AWS documentation for `descibe-instance-status` and see if you can find out what's going on. There is a way to make `descibe-instance-status` show the instance we just stopped.
 
-
-
-
-
-## Check the instance is stopped
+After an instance has been stopped, we can start it up again:
 
 ```bash
-aws ec2 describe-instances --instance-id "i-0b4e5483cd5c2a905" --query Reservations[0].Instances[0].State.Name
+aws ec2 start-instances --instance-id "i-0b4e5483cd5c2a905"
 ```
 
-## Terminate the instance
+The output from the command shows the instance has now been moved into a `pending` state.
+
+Wait until the instance has move to the `running` state, then try terminating it.
 
 ```bash
 aws ec2 terminate-instances --instance-id "i-0b4e5483cd5c2a905"
 ```
 
-## Check the status again
+Once the instance has terminated, try starting it again:
 
 ```bash
-aws ec2 describe-instances --instance-id "i-0b4e5483cd5c2a905" --query Reservations[0].Instances[0].State.Name
+aws ec2 start-instances --instance-id "i-0b4e5483cd5c2a905"
 ```
+
+An error message appears saying the instance cannot be started from it's current state. Even though the instance will still show up in your account for a little while, it's effectively gone. You can't do anything with it after termination.
+
+Yes you can completely kill an instance with one command line input. Luckily, if we need to get a similar instance running again we can now run the Ansible playbook we developed. There is a better way though! What if we created an AMI with Jenkins already installed and configured? Then we would just need to create a new instance and pass in the AMI ID we wanted.
+
+That's what project-3 will cover!
+
 
 ## Help
 
