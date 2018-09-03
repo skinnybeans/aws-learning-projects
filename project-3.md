@@ -129,19 +129,113 @@ We could have created a new EC2 instance from the AMI that was created, but it w
 
 ### Packer provisioners
 
-Similar to Ansible modules, Packer has provisioners.
+Similar to Ansible modules, Packer has provisioners. Two of those provisioners are used for running Ansible playbooks. We just wrote and Ansible playbook to install Jenkins are part of project 2. Maybe we can reuse that playbook here..
+
+### Packer Ansible provisioner
+
+Let's try and get Packer to run an Ansible playbook.
+
+There are some slight modifications required to the Packer json:
+
+```json
+{
+    "builders": [{
+      "type": "amazon-ebs",
+      "region": "ap-southeast-2",
+      "source_ami_filter": {
+        "filters": {
+        "virtualization-type": "hvm",
+        "name": "amzn2-ami-hvm*",
+        "root-device-type": "ebs"
+        },
+        "owners": ["137112412989"],
+        "most_recent": true
+      },
+      "instance_type": "t2.micro",
+      "ssh_username": "ec2-user",
+      "ami_name": "packer-ansible-test {{timestamp}}"
+    }],
+    "provisioners": [
+      {
+        "type": "ansible",
+        "playbook_file": "./test-playbook.yml"
+      }
+    ]
+  }
+```
+
+And lets create a test playbook file based on the early testing we did in the last project:
+
+```yaml
+---
+
+- hosts: jenkins-boxes
+  gather_facts: true
+  become: yes
+  become_method: sudo
+
+  tasks:
+    - name: Just some debug messaging
+      debug:
+         msg: "I am connecting to {{ ansible_nodename }} which is running {{ ansible_distribution }} {{ ansible_distribution_version }}"
+```
+
+Check Packer documentation on what the host name is called when running Ansible.
 
 
-
-
+With that working, use the whole Ansible file from the last project that installed and started Jenkins on the box.
 
 ### test the deployment
 
+Should now have an AMI with Jenkins. Go to the console and start up a new EC2 instance using the AMI. Add the necessary security groups to connect to Jenkins console and then try navigating to it.
+
+To find the AMI, have a look in the console under EC2 -> AMIs
+
+Now can start up a box with Jenkins with no extra effort.
+
 ### introduce cloudformation
+
+Now have a means to totally codify the creation of an instance with Jenkins (or any other software we need to deploy). However starting the instance, applying a security group.
+
+Cloudformation gives us a mechanism to the codifiation of infrastructure.
+
+Here's a quick template that simply starts an EC2 instance:
+
+```yaml
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "My EC2 test"
+Resources: 
+  JenkinsEC2Instance: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: "ami-00e17d1165b9dd3ec"
+      InstanceType: "t2.micro"
+```
+
+The formatting of the file should look familiar, it's YAML, which is the same format we used for the Ansible playbooks.
+
+The `Resources` section of the file lists all of the AWS resource to create. In this case, we only have one, an EC2 instance. There are a lot of properties that we can set for an EC2 instance through cloudformation. For this example, we have only specified which AMI to use and the type of instance. Important information such as security groups,  and access keys are missing which means the instance won't be very useful for us just yet.
+
+## running cloudformation
+
+Cloudformation can be run through the AWS console or from the command line.
+
+Seeing as we've been getting used to the command line, let's do it that way.
+
+First create a file named `my-cloudformation.yml` with the short sample shown above.
+
+Then try running your template like this:
+
+```bash
+aws cloudformation create-stack --stack-name MyFirstStack --template-body file://./first-cloudformation.yml
+```
+
 
 ### cloudformation to deploy the jenkins AMI
 
 ### cloudformation to add security group creation to AMI
+
+### split the starting of the jenkins service into user data
 
 
 ## HELP
