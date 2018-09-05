@@ -326,7 +326,36 @@ Venture forth into the AWS documentation, and see if you can get a cloudformatio
 - A launch template:
   - That uses the Jenkins AMI baked earlier in this project.
 
-There are a few tricky steps in here. The template likely won't run successfully the first time. Log into AWS console and check the CloudFormation error messages.
+There are a few tricky steps in here. The template likely won't run successfully the first time. Log into AWS console and check the CloudFormation error messages to help troubleshoot.
+
+If you get really stuck, take a look in the help section for the complete template.
+
+When you've got the template working, log into the AWS console and take a look at your running EC2 instances. Also check out your launch templates and autoscaling groups.
+
+You should see there's now one autoscaling group that contains one instance. Try SSHing on to the instance.
+
+Everything should be fine and dandy.
+
+Let's shake things up a bit. Terminate the instance you have running, either via the command line or though the AWS console. Then go and take a look at the autoscaling group again. You should still see the instance there, but now it has a status of unhealthy.
+
+If you wait a little while, you'll notice another instance pops up. The autoscaling group replaces the terminated instance with a new instance. It uses the LaunchTemplate we created as a blueprint for the new instance.
+
+Once the new instance has started up, try SSHing onto it. You'll notice the new instance has a new IP address. This is not all that helpful to us. If we get a new IP address every time a new instance is created, things like DNS will stop working until they are updated. This might be fine for our little Jenkins project, but if we were running a production system, people would be running after us with torches.
+
+Also remember the whole autoscaling thing? We are just using a group size of one at the moment, so there is only one EC2 instance and one IP address to send any internet traffic to. What if we had two instances in our autoscaling group? How would we split traffic evenly between them?
+
+There must be a way to:
+
+- Keep the IP address the same, even though the instances are terminating and restarting.
+- Distribute traffic across more than one instance evenly.
+
+Of course there is! Load balancers are the answer.
+
+However they are a story for another day!
+
+I hope you have enjoyed working through project 3.
+
+
 
 ## HELP
 
@@ -363,4 +392,50 @@ Resources:
           FromPort: '8080'
           ToPort: '8080'
           CidrIp: 0.0.0.0/0
+```
+
+### Autoscaling EC2 template
+
+Make sure you change the `ImageId` to match the ID of your Jenkins AMI.
+
+```yaml
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "My Jenkins EC2 test"
+Resources: 
+  JenkinsSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Enable SSH access via port 22"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: "tcp"
+          FromPort: "8080"
+          ToPort: "8080"
+          CidrIp: "0.0.0.0/0"
+  JenkinsLaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: JenkinsTemplate
+      LaunchTemplateData:
+        ImageId: "ami-091848aec0ee8756a"
+        InstanceType: "t2.micro"
+        KeyName: "MyEC2KeyPair"
+        SecurityGroups:
+          - !Ref JenkinsSecurityGroup
+  JenkinsAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref JenkinsLaunchTemplate
+        Version: 1
+      DesiredCapacity: "1"
+      MinSize: "1"
+      MaxSize: "1"
+      AvailabilityZones:
+        - "ap-southeast-2a"
+        - "ap-southeast-2b"
+
 ```
