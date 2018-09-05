@@ -230,13 +230,103 @@ Then try running your template like this:
 aws cloudformation create-stack --stack-name MyFirstStack --template-body file://./first-cloudformation.yml
 ```
 
+### Checking resources
+
+Go back into the AWS console and go to the CloudFormation service.
+
+You should a new stack there called `MyFirstStack`. Awesome it worked!!
+
+Take a look at your EC2 instances, there should be an instance there that was created through the CloudFormation template.
+
+### Deleting resources
+
+Deleting a CloudFormation stack is even easier than creating one.
+
+```
+aws cloudformation delete-stack --stack-name MyFirstStack
+```
+
+Have a look at your CloudFormation and EC2 in the AWS console again.
+
 
 ### cloudformation to deploy the jenkins AMI
 
-### cloudformation to add security group creation to AMI
+Now build on this cloudformation template until you can deploy the Jenkins AMI you baked in the first part of this project.
 
-### split the starting of the jenkins service into user data
+Here are a few things to keep in mind:
 
+- EC2
+  - Specify a key pair so you can access the instance using SSH.
+  - You need to change the image ID so it refers to the Jenkins image you created.
+  - The instance will need a security group to allow access on the usual ports for SSH and the Jenkins console.
+- Security group
+  - You'll need another resource, a security group.
+  - The EC2 instance needs to use this security group.
+
+
+Build up the template a little bit at a time.
+
+You'll notice that if you try to `create-stack` when the stack already exists you get an error.
+
+Take a look at how `update-stack` works.
+
+The final template is down in the help section if you need it.
+
+### Checking it all out
+
+When you have the template successfully working you should be able to access the Jenkins console on port 8080 as well as SSH onto the instance.
+
+## Infrastructure as code
+
+Well here we are, we now have our Jenkins instance fully codified. The only manual steps in our process now are:
+
+- Running packer to build a new AMI.
+- Running a cloudformation template to deploy the AMI and security group configuration.
+
+Now, if we were running this Jenkins box in production and had an issue with it, we wouldn't have to bother trying to fix it, we could just delete the stack and recreate it. Winning!
+
+To do something like terminate and restart an EC2 we wouldn't want to delete the whole stack though. We'd also be destroying the security group and another other resources that were part of the same CloudFormation stack.
+
+Also what happens if the Jenkins instance gets sick and dies? AWS isn't magic, we are still running our EC2 in a data center. Data centers have hardware failures now and then. How do we protect our Jenkins from destruction? How can we terminate our Jenkins and get another healthy one to appear if needed?
+
+### Autoscaling groups
+
+Amazon provides autoscaling groups to help us with this problem.
+
+With an autoscaling group, we can specify how many instances we want running at one time. If the number of instances drops below that, then the autoscaling group will create another one. It's also possible to have more instances created depending on certain instance metrics, such as CPU usage. If the CPU usage of the current instance gets too high, we might need another one to handle the load.
+
+In this case, we only really want one instance of our Jenkins AMI running. An autoscaling group with the following properties will help us achieve this goal:
+
+```yaml
+DesiredCapacity: "1"
+MinSize: "1"
+MaxSize: "1"
+```
+
+With this configuration, the autoscaling group will always try to keep exactly one instance running. If the instance in the group is terminated, a new one will be created automatically.
+
+You can probably guess what those properties do, even so it might be a good idea to check out the AWS documentation on autoscaling groups.
+
+There are three types of resources we need in the cloudformation template for this exercise:
+
+```yaml
+AWS::EC2::SecurityGroup
+AWS::EC2::LaunchTemplate
+AWS::AutoScaling::AutoScalingGroup
+```
+
+You'll notice EC2 is nowhere to be found. The `LaunchTemplate` takes the place of the EC2 resource. When the autoscaling group starts a new instance, it needs to know what that instance should look like. The LaunchTemplate provides this information.
+
+Venture forth into the AWS documentation, and see if you can get a cloudformation file build that creates:
+
+- A security group with access on:
+  - port 8080 and port 22
+- An autoscaling group:
+  - With a min, max and desired size of 1.
+- A launch template:
+  - That uses the Jenkins AMI baked earlier in this project.
+
+There are a few tricky steps in here. The template likely won't run successfully the first time. Log into AWS console and check the CloudFormation error messages.
 
 ## HELP
 
@@ -244,4 +334,33 @@ aws cloudformation create-stack --stack-name MyFirstStack --template-body file:/
 
 ```
 aws ec2 deregister-image --image-id "ami-0f8beed61ccbdb89d"
+```
+
+### Deploying the EC2
+
+```yaml
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "My Jenkins EC2 test"
+Resources: 
+  JenkinsEC2Instance: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: "ami-091848aec0ee8756a"
+      InstanceType: "t2.micro"
+      KeyName: "MyEC2Key"
+      SecurityGroups:
+        - !Ref JenkinsSecurityGroup
+  JenkinsSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '8080'
+          ToPort: '8080'
+          CidrIp: 0.0.0.0/0
 ```
